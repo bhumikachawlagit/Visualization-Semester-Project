@@ -1,0 +1,455 @@
+---
+title: "Visualization Project Component 1"
+author: "Bhumika Dilip Chawla | MDS202215"
+output:
+  html_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.height = 4)
+```
+
+### Abstract:
+
+The purpose of this project is to analyse various characteristics of
+small businesses spread across India. This component of the project
+contains some key insights from the data used. Further insights will be
+available in the second component of this project.
+
+### Introduction:
+
+The topic for this project is: Analysis of small business owners\
+The data used for this project had been collected with the help of a
+Google form link without collecting any information that would lead to
+respondent's identification.
+
+### Data definition:
+
+The variables present in our data are as follows:
+
+-   Age of the business owner
+
+-   Gender
+
+-   City: The city to which the business owner belongs.
+
+-   Product Category : Decor, Clothing, Home Kitchen etc.
+
+-   Whether the business was established during Covid-19 or prior to it.
+
+-   Number of months since the business has been running.
+
+-   A ranking of Instagram, Facebook, Youtube and WhatsApp as a mode of
+    preference for business by the owner.
+
+-   Target audience
+
+-   Shipping range : Whether within state, pan india, international etc.
+
+-   Average Net Profit/month? : (Revenue - Cost)/Revenue \* 100 %\
+
+-   Monthly orders
+
+-   Content interaction
+
+-   Marketing strategy
+
+-   Whether the business owner faces the following constraints:
+
+    -   Budget constraints
+
+    -   Lack of clients\
+
+    -   Lack of inventory\
+
+    -   Shortage of labour\
+
+    -   Family barrier\
+
+    -   Time Constraint\
+
+    -   Place Constraint\
+
+    -   Lack Of Management
+
+-   Capital Investment
+
+-   Mode of delivery
+
+-   Mode of payment
+
+-   Whether registered on other established websites.\
+
+-   Whether the business has a physical store.
+
+-   Whether there is a difference between the profitability from your
+    physical and online store.
+
+```{r,include=FALSE}
+#Importing, transforming data and defining functions:
+library(readxl)
+library(dplyr)
+library(ggplot2)
+dataset = read_excel("C:/Users/HP/OneDrive/Documents/PROJECTS/Analysis of small business owners and customers buying from such businesses/Running A Business.xlsx")
+
+
+#Convert monthly orders into data types with different categories
+
+datasetnew = dataset %>% 
+  mutate(MonthlyOrders = case_when(
+    as.numeric(`Monthly orders`) <= 40 ~ '< 40',
+    as.numeric(`Monthly orders`) > 40 & as.numeric(`Monthly orders`) <= 80 ~ 'Between 40 - 80',
+    as.numeric(`Monthly orders`) > 80 ~ '> 80'
+  ))
+
+#Convert shipping range into proper categorical column:
+library(dplyr)
+Shipping = dataset$`Shipping?`
+datasetnew = dataset %>% mutate(Shippingrange = case_when(
+    `Shipping?`== "City" ~ 'City',
+    `Shipping?` == "Neighbourhood, City" ~ 'City',
+    `Shipping` == "City, State" ~ 'Within State',
+    `Shipping?` == "Neighbourhood, City, State" ~ 'Within State',
+    `Shipping?` == "State" ~ 'Within State',
+    `Shipping?` == "International" ~ "International", 
+    `Shipping?` == "Neighbourhood, City, State, Pan India, International"  ~ "International",
+    `Shipping?` == "Pan India, International" ~ "International",
+    `Shipping?` == "Neighbourhood" ~ "Neighbourhood",
+    `Shipping?` == "Neighbourhood, City, State, Pan India" ~ 'Pan India',
+    `Shipping?` == "Pan India" ~ 'Pan India'
+  ))
+
+
+#convert target audience into proper categorical column:
+
+datasetnew = datasetnew %>%
+  mutate(TargetAudience = case_when(
+    `Target audience` == "15 - 25 years" ~ '15 to 25 years',
+      `Target audience` == "less than 15 years, 15 - 25 years" ~ '< 25 years',
+    `Target audience` == "15 - 25 years, 25 - 35 years" ~ '15 to 35 years',
+    `Target audience` == "15 - 25 years, 25 - 35 years, 35 - 45 years" ~ '15 to 45 years',
+    `Target audience` == "25 - 35 years" ~ "25 to 35 years",
+    `Target audience` == "25 - 35 years, 35 - 45 years" ~ '25 to 45 years',
+    `Target audience` == "25 - 35 years, 35 - 45 years, more than 45 years" ~ '25 and above',
+    `Target audience` == "35 - 45 years" ~ '35 to 45 years',
+    `Target audience` == "35 - 45 years, more than 45 years"  ~ '35 and above',
+    `Target audience` == "less than 15 years, 15 - 25 years, 25 - 35 years"  ~ '< 35 years',
+    `Target audience` == "less than 15 years, 15 - 25 years, 25 - 35 years, 35 - 45 years"  ~ '< 45 years',
+    `Target audience` == "less than 15 years, 15 - 25 years, 25 - 35 years, 35 - 45 years, more than 45 years" ~ 'All age groups',
+    `Target audience` == "15 - 25 years, 25 - 35 years, 35 - 45 years, more than 45 years" ~ '15 and above'
+  ))
+
+#Convert Mode of Delivery into a proper categorical column:
+
+datasetnew = datasetnew%>%
+  mutate(ModeofDelivery = case_when(
+    `Mode of delivery`== 'Couriers' ~ 'Couriers',
+    `Mode of delivery`== "Delivery Partner" |
+`Mode of delivery` == "Delivery Partner (BlueDart, Ekart, etc)" ~ "Delivery Partner",
+`Mode of delivery` == "Digital media" ~ "Digital media",
+`Mode of delivery` == "Indiapost"  ~ "Indiapost" ,
+`Mode of delivery` == "NA" ~ "NA",
+`Mode of delivery` == "Self Delivery" ~ "Self Delivery",
+`Mode of delivery` == "Self Pick-Up" ~ "Self Pick-Up",
+`Mode of delivery` == "Staff" ~ "Staff",
+`Mode of delivery` == "Wefast Swiggy Uber" ~ "Wefast Swiggy Uber"
+))
+
+#Removing inconsistent observation(s):
+
+ind = which(c(datasetnew$`Months of running` > 50 & 
+                datasetnew$`Covid, when?` == 'During Covid-19'))
+
+datasetnew = datasetnew[-ind,]
+
+
+
+verticalbar = function(dataset,column,rearrange=TRUE)
+{
+ 
+  library(ggplot2)
+  if(rearrange==TRUE){
+  column = factor(column,
+                  levels = names(sort(table(column),decreasing=T)))}
+  
+  ggplot(dataset,aes(x = column,fill=column))+
+    geom_bar(show.legend = F,
+             aes(y = (..count..)/sum(..count..)))+
+    theme_bw()+
+    theme(panel.grid.major.x = element_blank())+
+    scale_fill_brewer(type = 'qual')
+    
+}
+
+horizontalbar = function(dataset,column)
+{
+  library(ggplot2)
+  column = factor(column,
+                  levels = names(sort(table(column))))
+  
+  ggplot(dataset,aes(column,fill=column))+
+    geom_bar(show.legend = F,
+             aes(y = (..count..)/sum(..count..)))+
+    theme_bw()+
+    theme(panel.grid.major.x = element_blank())+
+    scale_fill_brewer(type = 'qual',palette = sample.int(8,1),aesthetics = 'fill') +
+    coord_flip()
+}
+
+polarchart = function(dataset,column)
+{
+ 
+  library(ggplot2)
+  ggplot(dataset,aes(column,fill=column))+
+    geom_bar(width = 1,colour = 'white')+
+    geom_text(stat='count',
+aes(y=after_stat(..count..),
+    label=after_stat(scales::percent(..count../sum(..count..),1))),
+position = position_stack(vjust=0.5))+
+    coord_polar()+
+    theme_gray()+
+    theme(axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.line = element_blank())
+}
+
+histogram = function(dataset,column)
+{
+ library(ggplot2)
+  ggplot(dataset,aes(column))+
+    geom_histogram(bins = 10,fill=sample.int(100,1),color = 'black')+
+    theme_bw()+
+    theme(panel.grid.major.x = element_blank())
+}
+scatterplot = function(dataset,col1,col2)
+{
+ 
+  library(ggplot2)
+  ggplot(dataset,aes(x=col1,y=col2))+
+    geom_point(col=sample.int(100,1),size=2) +
+    theme_bw()
+}
+
+boxplotfn = function(dataset,catv,cont)
+{
+ 
+  library(ggplot2)
+  ggplot(dataset,aes(x=reorder(catv,cont),y=cont,fill=catv))+
+    geom_boxplot(show.legend = F)+
+    scale_color_brewer(type='qual',palette = sample.int(8,1),aesthetics = 'fill')+
+    theme_bw()
+}
+
+stackedbarplotvertical = function(dataset,catv1,catv2)
+{
+
+  library(ggplot2)
+  ggplot(datasetnew,aes(catv1,
+                       fill=catv2))+
+    geom_bar(position = 'stack',
+             aes(y = (..count..)/sum(..count..))) +
+    scale_color_brewer(type='qual',palette = 1,aesthetics = 'fill')+
+    theme_bw()+
+    theme(panel.grid.major.x = element_blank())
+}
+
+stackedbarplothorizontal = function(dataset,catv1,catv2)
+{
+
+  library(ggplot2)
+  ggplot(datasetnew,aes(catv1,
+                       fill=catv2))+
+    geom_bar(position = 'stack',
+             aes(y = (..count..)/sum(..count..))) +
+    coord_flip()+
+    scale_color_brewer(type='qual',palette = 1,aesthetics = 'fill')+
+    theme_bw()+
+    theme(panel.grid.major.x = element_blank())
+}
+```
+
+### Visualizations:
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,fig.width=4}
+p = verticalbar(datasetnew,datasetnew$`Physical store?`) 
+
+p + xlab('Answer')+
+  ylab('Proportion') +
+  ggtitle('Does the business have physical stores?')+
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5))+
+  xlim('Yes','No')
+
+```
+
+<br> <br> <br> About **88%** owners in our sample don't have a
+physical store and run their business through the internet, basically
+they are **E-commerce** businesses. <br> <br> <br> 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+p = histogram(dataset,dataset$`Months of running`)
+p+xlab('Months of running') + ylab('Frequency') +
+  ggtitle('Distribution of months of running for businesses in our sample.') +
+  theme(plot.title = element_text(hjust=0.5))
+
+
+```
+
+<br> <br> <br> Most of the businesses in our sample have **less**
+than **50** **months** of running/ **less** than **5** **years** of
+running. <br> <br> <br>
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,fig.width=4}
+
+verticalbar(dataset,dataset$`Covid, when?`) +
+  xlim('Prior To Covid-19','During Covid-19') +
+  xlab('Lauch period') + ylab('Proportion') +
+  ggtitle('When was the business launched?')+
+  theme(plot.title = element_text(hjust= 0.5))
+
+```
+
+<br> <br> <br> Most businesses in our data have started their
+operation **during** the pandemic of **COVID 19**. <br> <br> <br> 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+polarchart(dataset,dataset$`Product category`) +
+  scale_fill_discrete(name = 'Product Category')
+
+```
+
+<br> <br> <br>
+
+* Top 4 product categories in our sample:
+
+    -   Decor
+
+    -   Bakery and chocolate items
+
+    -   Bags and accessories
+
+    -   Clothing
+
+<br> <br> <br> 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+horizontalbar(dataset,dataset$`Seller Instagram`)+
+  xlab('Preference') + ylab('Proportion') + 
+  ggtitle('Instagram as a preference for business by the owners.')+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+
+<br> <br> <br> 
+
+**Most** owners in our sample consider **Instagram** to be their **1st**
+choice of preference for their business.
+
+<br> <br> <br>
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+boxplotfn(datasetnew,datasetnew$`Seller Instagram`,
+          datasetnew$`Months of running`) +
+  xlim('1st','2nd','3rd','4th') +
+  xlab('Instagram ranked as an aid to business.') +    ylab('Age') + 
+  ggtitle('Age vs Instagram as a preference')  +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+<br> <br> <br> 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+boxplotfn(datasetnew,datasetnew$`Seller Facebook`,
+          datasetnew$`Months of running`)+
+  xlim('1st','2nd','3rd','4th')+
+  xlab('Facebook ranked as an aid to business') +    ylab('Age') + 
+  ggtitle('Age vs Facebook as a preference')+
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+<br> <br> <br> 
+
+We can observe from the 2 graphs above that the businesses which have
+**Facebook** as their **1st** platform of preference are **older**
+businesses as compared to the businesses which have **Instagram** as
+their **1st** platform of preference. Because Instagram has **recently**
+started as compared to Facebook and hence the businesses which were
+present **long back** use **Facebook** for their business and businesses
+which have started **recently** use **Instagram**. <br> <br> <br> 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+boxplotfn(datasetnew,datasetnew$`Covid, when?`,datasetnew$Age)+
+  xlim('Prior To Covid-19','During Covid-19')+
+  xlab('Launch period of business') +
+  ylab('Age of the business owner')+
+  ggtitle('Age of business owner vs Launch period of business')+
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+<br> <br> <br>
+
+Businesses which were established prior to Covid-19 have business owners
+with **median** age of **30 years**. While businesses which were
+established during Covid-19 have business owners with a median age of
+**20 years**, with a **50%** concentration in the age group of **18-24
+years**.
+
+<br> <br> <br>
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+ggplot(datasetnew,aes(x=`Age`,y=`Months of running`,
+                      color=`Covid, when?`))+
+geom_point(size=2) + xlab('Age of business owner') +
+  labs(color='Lauch Period')  +
+  ggtitle('Age of business owner vs Months of running') +
+  theme(plot.title = element_text(hjust=0.5))
+  
+  
+
+```
+
+<br> <br> <br> As expected, owners which are **aged**, own
+businesses which have been running for a **longer duration** as compared
+to businesses owned by **younger** business owners. <br> <br> <br>
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+boxplotfn(datasetnew,datasetnew$`Content interaction`,
+          datasetnew$Age) +
+  xlim('0-10%','10-20%','20-30%','30-40%','more than 40%')+
+  xlab ( 'Percentage of content interaction') +
+  ylab('Age of business owner') +
+  ggtitle('Age of owner vs the content interaction on various social media websites')
+
+```
+
+<br> <br> <br>The **median** age of the business owners who have
+**0-10%** content interaction is **higher** as compared to others who
+have **more than 10%** content interaction.
+
+<br>
+
+### Caution:
+
+From the above analysis, we understood that most businesses in our
+sample are those which have been launched during the period of Covid-19,
+hence there is bias in our sample. Thus any insights drawn from our
+sample should not be generalised to the entire population of small
+business owners in India.
+
+### Conclusion:
+
+We explored distributions of various variables and their
+interrelationships with other variables using univariate and bivariate
+plots here. Further exploration of data would be performed in the second
+component i.e. the R Shiny Dashboard.
